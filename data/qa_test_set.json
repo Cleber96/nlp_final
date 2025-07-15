@@ -1,0 +1,27 @@
+[
+    {
+        "question": "¿Qué es la Generación Aumentada por Recuperación (RAG)?",
+        "answer": "La Generación Aumentada por Recuperación (RAG) es una arquitectura de IA que combina un sistema de recuperación de documentos con un modelo de lenguaje generativo para producir respuestas más informadas y precisas.",
+        "references": ["La recuperación de información combinada con modelos generativos mejora la precisión."]
+    },
+    {
+        "question": "¿Cómo funciona FAISS en LangChain?",
+        "answer": "FAISS (Facebook AI Similarity Search) se utiliza en LangChain como un almacén vectorial para almacenar y buscar rápidamente embeddings de documentos. Permite una búsqueda de similitud eficiente para encontrar fragmentos relevantes.",
+        "references": ["FAISS es un índice eficiente para búsqueda de similitud.", "LangChain integra FAISS para recuperación de documentos."]
+    },
+    {
+        "question": "¿Cuál es la función principal de un LLM en un sistema RAG?",
+        "answer": "La función principal de un Modelo de Lenguaje Grande (LLM) en un sistema RAG es generar una respuesta coherente y fluida basada en la pregunta del usuario y el contexto relevante recuperado.",
+        "references": ["El LLM genera respuestas basadas en el contexto.", "Los LLM en RAG utilizan información recuperada."]
+    },
+    {
+        "question": "¿Qué utilidad tiene el 'chunking' de documentos?",
+        "answer": "El chunking, o división de documentos en fragmentos más pequeños, es útil para procesar grandes volúmenes de texto, facilitar la creación de embeddings y asegurar que el contexto proporcionado al LLM sea manejable y relevante.",
+        "references": ["Chunking divide documentos grandes.", "Facilita embeddings y contexto para LLM."]
+    },
+    {
+        "question": "¿Qué métricas se usan para evaluar un sistema QA?",
+        "answer": "Las métricas comunes para evaluar sistemas de Preguntas y Respuestas incluyen ROUGE, F1 Score y Exact Match, que comparan las respuestas generadas con las respuestas de referencia.",
+        "references": ["ROUGE, F1, Exact Match son métricas de QA."]
+    }
+]
