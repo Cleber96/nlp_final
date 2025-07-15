@@ -51,10 +51,10 @@ proyecto/
 │       └── benchmark_results.csv
 │
 ├── models/                   <- Carpeta opcional para modelos LLM descargados localmente (e.g., .gguf)
-│   └── [nombre_modelo].gguf  <- Ej. tinyllama-1.1b-chat-v1.0.Q5_K_M.gguf
+│   └── modelo.gguf 
 │
 ├── data/                     <- Carpeta opcional para documentos de ejemplo
-│   └── [tus_documentos].pdf/.md
+│   └── prueba.md
 │
 ├── exposicion.ipynb          <- Cuaderno único con explicación, demos y visualizaciones
 ├── requirements.txt          <- Dependencias exactas del proyecto
