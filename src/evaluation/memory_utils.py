@@ -3,6 +3,7 @@ import os
 import logging
 import platform
 from typing import Dict, Any, Optional
+from typing import Union, Dict
 
 # Configurar el logging
 logger = logging.getLogger(__name__)

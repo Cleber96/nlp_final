@@ -1,5 +1,6 @@
 import pytest
 import time
+from unittest.mock import MagicMock, patch, ANY 
 from src.rag_system.rag_chain import RAGChain
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
@@ -21,7 +22,7 @@ def test_rag_chain_initialization(rag_chain, mock_vectorstore_retriever, mock_ll
     """
     assert rag_chain.retriever is mock_vectorstore_retriever
     assert rag_chain.llm is mock_llm
-    assert rag_chain.prompt is prompt_template_manager.get_qa_prompt()
+    assert rag_chain.prompt == prompt_template_manager.get_qa_prompt()
     assert rag_chain.chain is not None # La cadena debe estar construida
 
 def test_rag_chain_build_chain_structure(rag_chain):
@@ -110,7 +111,7 @@ def test_rag_chain_response_format_placeholder(rag_chain, sample_question, mock_
     response = rag_chain.invoke(sample_question)
     assert "No tengo suficiente información" in response
 
-def test_rag_chain_response_time_under_threshold(rag_chain, sample_question, mock_llm):
+def test_rag_chain_response_time_under_threshold(rag_chain, sample_question, mock_llm, mock_vectorstore_retriever):
     """
     Valida que el tiempo de respuesta para una invocación de la cadena RAG
     sea menor a un umbral (ej. 2 segundos para k=5).

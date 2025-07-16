@@ -9,7 +9,7 @@ El sistema está diseñado para superar las limitaciones de los LLMs puros, como
 
 ```plaintext
 # Proyecto 8: Sistema RAG para Preguntas-Respuestas sobre Documentación Técnica
-
+```
 ## Descripción del Proyecto
 
 Este repositorio contiene la implementación de un sistema de Preguntas-Respuestas (Question-Answering) basado en la arquitectura **Retrieval Augmented Generation (RAG)**. El objetivo principal es construir una solución robusta y modular para interactuar con documentación técnica diversa (PDF, Markdown), utilizando LangChain para orquestar los componentes, FAISS como almacén vectorial eficiente y un Modelo de Lenguaje Grande (LLM) para la generación de respuestas contextualizadas.

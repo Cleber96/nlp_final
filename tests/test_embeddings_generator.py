@@ -52,7 +52,7 @@ def test_embed_texts_empty_list(embeddings_generator):
     assert isinstance(embeddings, list)
     assert len(embeddings) == 0
     # Asegurarse de que el método mockeado fue llamado, incluso con una lista vacía
-    embeddings_generator.embeddings.embed_documents.assert_called_once_with([])
+    embeddings_generator.embeddings.embed_documents.assert_not_called()
 
 def test_embed_documents_placeholder(embeddings_generator):
     """

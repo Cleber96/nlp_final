@@ -1,28 +1,34 @@
 #!/bin/bash
-
-# run_bench.sh
+# benchmarks/run_bench.sh
 # Script para ejecutar los benchmarks del sistema RAG.
 
 echo "Iniciando proceso de benchmarking..."
 
-# Activar el entorno virtual (asumiendo que se llama 'venv' o 'env')
+# Ruta a la raíz del proyecto. Asume que este script está en 'benchmarks/'
+PROJECT_ROOT=$(dirname "$0")/..
+
+# Activar el entorno virtual (asumiendo que se llama 'venv' o 'env' en la raíz del proyecto)
 # Si tu entorno virtual tiene otro nombre o ubicación, ajústalo aquí.
-if [ -d "venv" ]; then
+if [ -d "$PROJECT_ROOT/venv" ]; then
     echo "Activando entorno virtual 'venv'..."
-    source venv/bin/activate
-elif [ -d "env" ]; then
+    source "$PROJECT_ROOT/venv/bin/activate"
+elif [ -d "$PROJECT_ROOT/env" ]; then
     echo "Activando entorno virtual 'env'..."
-    source env/bin/activate
+    source "$PROJECT_ROOT/env/bin/activate"
 else
-    echo "Advertencia: No se encontró un entorno virtual 'venv' o 'env'. Asegúrate de que las dependencias estén instaladas."
+    echo "Advertencia: No se encontró un entorno virtual 'venv' o 'env' en la raíz del proyecto ($PROJECT_ROOT). Asegúrate de que las dependencias estén instaladas en tu entorno activo."
+    # Opcional: podrías salir aquí si el entorno es mandatorio
+    # exit 1 
 fi
 
-# Crear el directorio de resultados si no existe
-mkdir -p benchmarks/results
+# Crear el directorio de resultados si no existe (ruta relativa a la ejecución actual)
+mkdir -p results
 
-# Ejecutar el script de benchmarking
+# Ejecutar el script de benchmarking.
+# Establecemos PYTHONPATH para que Python pueda encontrar los módulos en 'src'
+# La ruta del script Python ahora es relativa a la ubicación actual del shell ('benchmarks/')
 echo "Ejecutando bench_qa_performance.py..."
-python benchmarks/bench_qa_performance.py
+PYTHONPATH="$PROJECT_ROOT" python3 bench_qa_performance.py # <--- CAMBIO AQUÍ (sin 'benchmarks/' y con PYTHONPATH)
 
 # Desactivar el entorno virtual
 if [ -n "$VIRTUAL_ENV" ]; then

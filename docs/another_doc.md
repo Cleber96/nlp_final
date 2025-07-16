@@ -1,3 +1,4 @@
+
 # Documento de Prueba
 
 Este es un documento de prueba para el sistema RAG.

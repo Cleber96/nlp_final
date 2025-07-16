@@ -80,7 +80,9 @@ class RAGChain:
             logger.warning("La pregunta está vacía. No se invocará la cadena RAG.")
             return "Por favor, proporciona una pregunta válida."
         
-        logger.info(f"Invocando la cadena RAG con la pregunta: '{question[:50]}...'")
+        # Asegúrate de que 'question' es una cadena antes de intentar cortarla
+        question_for_log = str(question) if question is not None else ""
+        logger.info(f"Invocando la cadena RAG con la pregunta: '{question_for_log[:50]}...'")
         try:
             response = self.chain.invoke(question)
             logger.info("Invocación de la cadena RAG completada.")
@@ -107,8 +109,10 @@ class RAGChain:
             logger.error("El diccionario de entrada debe contener las claves 'context' y 'question'.")
             raise ValueError("Input dictionary must contain 'context' and 'question' keys.")
         
+        # Asegúrate de que input_dict['question'] es una cadena antes de intentar cortarla
+        question_for_log = str(input_dict['question']) if input_dict['question'] is not None else ""
         logger.info(f"Invocando la cadena RAG con contexto y pregunta predefinidos. "
-                    f"Pregunta: '{input_dict['question'][:50]}...'")
+                    f"Pregunta: '{question_for_log[:50]}...'")
         try:
             # Aquí la cadena solo necesita el prompt, el LLM y el parser,
             # ya que el contexto y la pregunta ya están en el input_dict.

@@ -35,3 +35,8 @@ streamlit
 pytest
 
 llama-cpp-python
+psutil
+
+#rouge
+rouge_score
+absl-py
