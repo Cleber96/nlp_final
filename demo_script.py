@@ -1,7 +1,14 @@
 # demo_script.py
 import os
+import sys # <--- ¡Añadir sys!
 import logging
 import shutil # Importar shutil para el borrado recursivo
+
+# --- IMPORTANTE: Ajustar el sys.path para importaciones relativas al proyecto ---
+# Como este script está en la raíz del proyecto, añadimos la raíz misma al sys.path.
+current_script_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, current_script_dir)
+# --- FIN DEL AJUSTE DE sys.path ---
 
 # Configurar el logging para ver los mensajes de los módulos
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -13,40 +20,27 @@ from src.data_ingestion.text_splitter import TextSplitter
 from src.vector_store.embeddings_generator import EmbeddingsGenerator
 from src.vector_store.faiss_store import FAISSStore
 from src.rag_system.prompt_template import PromptTemplateManager
-# CAMBIO CLAVE: Vamos a usar el LLMModel que creamos para GPT4All
-# para la demo rápida, o adaptar el actual para cargar GPT4All.
-# Necesitamos que LLMModel sea flexible para cargar GPT4All o HuggingFacePipeline.
-# Para simplificar la demo, podemos definir un LLMModel_Demo especial o ajustar el existente.
-# Por simplicidad para esta demo rápida, vamos a re-introducir la lógica de carga de GPT4All aquí
-# o ajustar LLMModel.py para que pueda manejar ambos fácilmente.
-# La opción más rápida es añadir la lógica GPT4All directamente para la demo.
-
-# Para esta demo rápida, usaremos una versión simplificada del LLMModel para GPT4All.
-# Opcional: Podríamos hacer que LLMModel.py soporte ambos modos (GPT4All y HF)
-# pero eso complicaría LLMModel.py. Para esta demo rápida, es mejor esto:
-
-from gpt4all import GPT4All as GPT4AllModelLoader # Importar GPT4All para cargar el modelo
+# Importaciones para GPT4All
+from gpt4all import GPT4All as GPT4AllModelLoader # Importar GPT4All para cargar el modelo (gpt4all.GPT4All)
 from langchain_community.llms.gpt4all import GPT4All as LangChainGPT4All # Importar el wrapper de LangChain para GPT4All
-# NOTA: Asegúrate que tus embeddings y retrievers funcionen con langchain-community.
-
-# Esto significa que src/rag_system/llm_model.py no se usará para esta demo rápida.
-# Si quieres mantener una única clase LLMModel, tendríamos que refactorizarla para
-# que acepte diferentes tipos de modelos (GPT4All, HF, etc.) basados en los parámetros.
-# Por ahora, para que sea lo más rápido de probar:
-
-
 from src.rag_system.retriever import CustomRetriever
 from src.rag_system.rag_chain import RAGChain
 
 
 # --- Configuración para la DEMO RÁPIDA (usando GPT4All) ---
-DOCS_PATH = "docs/"
-FAISS_INDEX_PATH = "faiss_index"
+# --- ¡Asegúrate de que estas rutas sean correctas para TU PROYECTO! ---
+DOCS_PATH = "data/docs/" # <--- ¡AJUSTADO! Si tus documentos están en final_nlp/data/docs/
+FAISS_INDEX_PATH = "vector_store/faiss_index" # <--- ¡AJUSTADO! Para guardar el índice en vector_store/
+EMBEDDING_MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2" # El mismo que usaste para FAISS
+CHUNK_SIZE = 500 # <--- Ajuste del TextSplitter
+CHUNK_OVERLAP = 50 # <--- Ajuste del TextSplitter
 
-# --- CAMBIOS AQUI PARA USAR GPT4ALL PEQUEÑO ---
-GPT4ALL_DEMO_MODEL_NAME = "orca-mini-3b-gguf2.q4_0.gguf" # Un modelo GPT4All muy ligero
-GPT4ALL_DEMO_MODEL_PATH = f"models/{GPT4ALL_DEMO_MODEL_NAME}" # Ruta local
-K_VALUE_DEMO = 3 # Un valor de k para la demostración
+GPT4ALL_DEMO_MODEL_NAME = "orca-mini-3b-gguf2.q4_0.gguf"
+# La ruta del modelo es relativa a la raíz del proyecto.
+# Asegúrate de que el modelo se descargue o exista en 'final_nlp/models/orca-mini-3b-gguf2.q4_0.gguf'
+GPT4ALL_DEMO_MODEL_PATH = os.path.join("models", GPT4ALL_DEMO_MODEL_NAME) 
+
+K_VALUE_DEMO = 3 # Número de documentos más relevantes a recuperar por el retriever
 
 def run_demo():
     print("\n--- INICIANDO DEMOSTRACIÓN RÁPIDA DEL SISTEMA RAG ---")
@@ -54,16 +48,23 @@ def run_demo():
 
     # 1. Ingesta y Creación/Carga de FAISS
     print("\nPASO 1: Ingesta de Documentos y Creación/Carga del Vector Store (FAISS)")
-    embeddings_generator = EmbeddingsGenerator()
-    embeddings = embeddings_generator.embeddings
-    faiss_store = FAISSStore(embeddings=embeddings)
+    
+    # Inicializar EmbeddingsGenerator con el nombre del modelo
+    embeddings_generator = EmbeddingsGenerator(model_name=EMBEDDING_MODEL_NAME) 
+    embeddings = embeddings_generator.get_embeddings() # Asegúrate que tu EmbeddingsGenerator tenga un get_embeddings()
+    
+    faiss_store = FAISSStore(embeddings=embeddings, faiss_path=FAISS_INDEX_PATH) # Pasa faiss_path al constructor
 
-    if os.path.exists(FAISS_INDEX_PATH):
+    # Verificar y crear el directorio para FAISS si no existe
+    os.makedirs(FAISS_INDEX_PATH, exist_ok=True)
+
+    # Intentar cargar o crear el índice FAISS
+    if os.path.exists(os.path.join(FAISS_INDEX_PATH, "index.faiss")):
         try:
-            faiss_store.load_local(FAISS_INDEX_PATH)
+            faiss_store.load_local() # Tu load_local probablemente no necesita el path si ya está en el constructor
             print(f"Índice FAISS cargado exitosamente desde {FAISS_INDEX_PATH}.")
         except Exception as e:
-            print(f"Error al cargar el índice FAISS: {e}. Procediendo a crearlo.")
+            print(f"Error al cargar el índice FAISS desde {FAISS_INDEX_PATH}: {e}. Procediendo a crearlo.")
             # Borrar el índice defectuoso si existe
             if os.path.exists(FAISS_INDEX_PATH):
                 shutil.rmtree(FAISS_INDEX_PATH)
@@ -86,20 +87,23 @@ def run_demo():
     if not os.path.exists(GPT4ALL_DEMO_MODEL_PATH):
         print(f"Modelo GPT4All no encontrado en {GPT4ALL_DEMO_MODEL_PATH}. Intentando descargarlo...")
         try:
-            # gpt4all.GPT4All maneja la descarga si no existe
-            gpt4all_instance = GPT4AllModelLoader(model_name=GPT4ALL_DEMO_MODEL_NAME, model_path=model_dir, allow_download=True)
-            # El constructor ya se asegura de que esté en el model_path, no necesitamos renombrar.
-            print(f"Modelo GPT4All '{GPT4ALL_DEMO_MODEL_NAME}' descargado con éxito.")
+            # gpt4all.GPT4All maneja la descarga si no existe y lo guarda en model_dir
+            # Solo necesitamos una instancia para la descarga, no para inferencia aquí
+            _ = GPT4AllModelLoader(model_name=GPT4ALL_DEMO_MODEL_NAME, model_path=model_dir, allow_download=True)
+            print(f"Modelo GPT4All '{GPT4ALL_DEMO_MODEL_NAME}' descargado con éxito en {model_dir}.")
         except Exception as e:
             print(f"ERROR: No se pudo descargar el modelo GPT4all. Asegúrate de tener conexión a internet o descárgalo manualmente en {GPT4ALL_DEMO_MODEL_PATH}. Error: {e}")
             return # Salir de la demo si no se puede cargar el LLM
+    else:
+        print(f"Modelo GPT4all '{GPT4ALL_DEMO_MODEL_NAME}' encontrado localmente.")
+
 
     # Inicializar el LLM de LangChain con el modelo GPT4All
     llm = LangChainGPT4All(
         model=GPT4ALL_DEMO_MODEL_PATH,
         max_tokens=512, # Ajustar la longitud máxima de la respuesta
-        temp=0.1,       # Temperatura baja para respuestas más directas
-        verbose=False   # Opcional: para reducir la verbosidad de GPT4All
+        temp=0.1,        # Temperatura baja para respuestas más directas
+        verbose=False    # Opcional: para reducir la verbosidad de GPT4All
     )
     print(f"LLM ({GPT4ALL_DEMO_MODEL_NAME}) cargado para la demo.")
 
@@ -123,20 +127,38 @@ def run_demo():
         print(f"Procesando pregunta: '{user_question}'...")
         try:
             # Obtener la respuesta del RAG
-            response = rag_chain.invoke(user_question)
+            response = rag_chain.invoke({"query": user_question}) # <--- Asegúrate que RAGChain.invoke espera un diccionario
+            # La respuesta de una cadena RetrievalQA o similar suele estar en 'result'
             print("\n--- RESPUESTA GENERADA ---")
-            print(response)
+            print(response.get("result", response)) # Accede a 'result' si existe, si no, imprime la respuesta completa
+            # Opcional: Mostrar documentos fuente si tu RAGChain los devuelve
+            if "source_documents" in response:
+                print("\n--- DOCUMENTOS FUENTE ---")
+                for i, doc in enumerate(response["source_documents"]):
+                    print(f"  Documento {i+1} (Fuente: {doc.metadata.get('source', 'N/A')}, Página: {doc.metadata.get('page', 'N/A')}):")
+                    print(f"    Contenido: {doc.page_content[:250]}...")
+                    print("-" * 25)
             print("-------------------------")
+
         except Exception as e:
             print(f"Error al generar respuesta: {e}")
+            logger.exception("Detalles del error al generar respuesta:") # Para ver el traceback completo
 
-def create_faiss_index(faiss_store):
+def create_faiss_index(faiss_store: FAISSStore): # Tipo de faiss_store para claridad
     print(f"Cargando y dividiendo documentos desde {DOCS_PATH}...")
-    document_loader = DocumentLoader()
-    text_splitter = TextSplitter()
+    
+    document_loader = DocumentLoader() # No necesita argumentos si no tiene __init__
+    # Pasa los parámetros al constructor de TextSplitter
+    text_splitter = TextSplitter(chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP) 
     
     all_documents = []
-    for root, _, files in os.walk(DOCS_PATH):
+    # Usar os.path.join para construir la ruta completa al directorio de docs
+    full_docs_path = os.path.join(current_script_dir, DOCS_PATH) 
+    
+    if not os.path.exists(full_docs_path):
+        raise ValueError(f"El directorio de documentos no existe: {full_docs_path}. Crea la carpeta 'data/docs' y coloca tus archivos.")
+
+    for root, _, files in os.walk(full_docs_path):
         for file in files:
             file_path = os.path.join(root, file)
             if file.endswith(".pdf"):
@@ -151,15 +173,18 @@ def create_faiss_index(faiss_store):
                     all_documents.extend(docs)
                 else:
                     logger.warning(f"No se pudieron cargar documentos de {file_path}. ¿Está vacío o corrupto?")
+            else:
+                logger.info(f"Saltando archivo no soportado o reconocido: {file_path}")
     
     if not all_documents:
-        raise ValueError(f"No se encontraron documentos válidos en {DOCS_PATH}. Asegúrate de tener archivos PDF o Markdown con contenido.")
+        raise ValueError(f"No se encontraron documentos válidos en {full_docs_path}. Asegúrate de tener archivos PDF o Markdown con contenido.")
 
     chunks = text_splitter.split_documents(all_documents)
     print(f"Documentos cargados y divididos en {len(chunks)} fragmentos.")
     
-    faiss_store.create_from_documents(chunks, FAISS_INDEX_PATH)
-    print("Índice FAISS creado y guardado.")
+    # create_from_documents recibe el path para guardar el índice
+    faiss_store.create_from_documents(chunks, FAISS_INDEX_PATH) 
+    print(f"Índice FAISS creado y guardado en {FAISS_INDEX_PATH}.")
 
 if __name__ == "__main__":
     run_demo()

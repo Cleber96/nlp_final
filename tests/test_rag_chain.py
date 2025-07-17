@@ -1,6 +1,7 @@
+# tests/test_rag_chain.py
 import pytest
 import time
-from unittest.mock import MagicMock, patch, ANY 
+from unittest.mock import MagicMock, patch, ANY
 from src.rag_system.rag_chain import RAGChain
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
@@ -8,7 +9,9 @@ from langchain_core.language_models import BaseLLM
 from langchain_core.vectorstores import VectorStoreRetriever
 from langchain_core.prompts import ChatPromptTemplate
 from langchain.schema import Document
-from unittest.mock import MagicMock
+
+# Definir RETRIEVER_K. Ajusta este valor si tu retriever tiene una 'k' específica.
+RETRIEVER_K = 2 # Por ejemplo, si tu retriever devuelve 2 documentos por defecto.
 
 # Fixtures `mock_vectorstore_retriever`, `mock_llm`, `prompt_template_manager` se definen en conftest.py
 
@@ -48,24 +51,17 @@ def test_rag_chain_invoke_success(rag_chain, sample_question, mock_vectorstore_r
     mock_llm.invoke.reset_mock()
 
     response = rag_chain.invoke(sample_question)
-    
+
     assert isinstance(response, str)
     assert response == "Respuesta simulada del LLM." # Basado en el mock_llm
 
-    # Verificar que el retriever fue llamado con la pregunta
-    mock_vectorstore_retriever.invoke.assert_called_once_with(sample_question)
-    
-    # Verificar que el LLM fue llamado. El input al LLM es el resultado del prompt.
-    # Como el prompt tiene {context} y {question}, el input al LLM depende de estos.
-    # El mock del retriever devuelve Documentos, que el prompt formatea.
-    # No podemos verificar el contenido exacto del prompt sin más mocks,
-    # pero sí podemos asegurar que invoke del LLM fue llamado.
+    # Verificar que el retriever fue llamado con la pregunta.
+    # Usamos assert_called_once() y luego verificamos el primer argumento posicional.
+    mock_vectorstore_retriever.invoke.assert_called_once()
+    assert mock_vectorstore_retriever.invoke.call_args[0][0] == sample_question
+
+    # Verificar que el LLM fue llamado.
     mock_llm.invoke.assert_called_once()
-    # Podemos hacer una aserción más específica sobre el input del LLM si sabemos el formato del prompt
-    # Por ejemplo, si el prompt formatea a un string, podríamos buscar ese string:
-    # prompt_input_str = mock_llm.invoke.call_args[0][0]
-    # assert "Contexto relevante 1." in prompt_input_str
-    # assert "What is RAG?" in prompt_input_str
 
 def test_rag_chain_invoke_with_context_and_question(rag_chain, mock_llm, prompt_template_manager):
     """
@@ -73,30 +69,37 @@ def test_rag_chain_invoke_with_context_and_question(rag_chain, mock_llm, prompt_
     sin pasar por el retriever.
     """
     mock_llm.invoke.reset_mock() # Resetear para este test
-    
+
     custom_context = "El RAG (Retrieval-Augmented Generation) combina la recuperación de información con la generación de texto."
-    input_dict = {
+    question = "Explica RAG."
+
+    # Se asume que `invoke_with_context_and_question` en tu RAGChain
+    # espera un diccionario como entrada, según los errores anteriores.
+    input_for_method = {
         "context": custom_context,
-        "question": "Explica RAG."
+        "question": question
     }
+    response = rag_chain.invoke_with_context_and_question(input_for_method)
 
-    # Recrear la cadena que `invoke_with_context_and_question` usaría para asegurar la llamada correcta
-    # Este método de RAGChain no usa self.retriever. Simula una cadena más simple.
-    temp_chain = rag_chain.prompt | rag_chain.llm | StrOutputParser()
-    
-    # Parchear el invoke de esta cadena temporal para verificar la llamada
-    with patch.object(temp_chain, 'invoke', wraps=temp_chain.invoke) as mock_temp_chain_invoke:
-        response = rag_chain.invoke_with_context_and_question(input_dict)
+    assert isinstance(response, str)
+    assert response == "Respuesta simulada del LLM." # Del mock_llm
 
-        assert isinstance(response, str)
-        assert response == "Respuesta simulada del LLM." # Del mock_llm
+    # Verificar que el LLM fue llamado.
+    mock_llm.invoke.assert_called_once()
 
-        # Verificar que el LLM fue llamado con el input formateado por el prompt
-        # Aquí podemos ser más específicos porque el `context` ya está dado como string
-        mock_llm.invoke.assert_called_once()
-        llm_input_content = mock_llm.invoke.call_args[0][0].messages[0].content # Acceder al contenido del HumanMessage
-        assert "El RAG (Retrieval-Augmented Generation) combina la recuperación de información con la generación de texto." in llm_input_content
-        assert "Explica RAG." in llm_input_content
+    # Opcional: Verificar el contenido del prompt que se le pasó al LLM
+    # LangChain pasa un objeto al LLM (ej. ChatPromptValue) que contiene los mensajes.
+    llm_input_object = mock_llm.invoke.call_args[0][0]
+
+    # Verifica que el objeto tiene el atributo 'messages' (si es un ChatPromptValue)
+    assert hasattr(llm_input_object, 'messages')
+    assert len(llm_input_object.messages) > 0
+
+    # Accede al contenido del primer mensaje (que debería ser el HumanMessage con el prompt completo)
+    formatted_prompt_content = llm_input_object.messages[0].content
+
+    assert custom_context in formatted_prompt_content
+    assert question in formatted_prompt_content
 
 def test_rag_chain_response_format_placeholder(rag_chain, sample_question, mock_llm):
     """
@@ -118,23 +121,25 @@ def test_rag_chain_response_time_under_threshold(rag_chain, sample_question, moc
     Esto requiere simular el retardo del LLM y retriever.
     """
     expected_max_time = 2.0 # segundos
-    
+
     # Simular un retardo en el retriever y el LLM
-    mock_vectorstore_retriever.invoke.side_effect = lambda q: (
+    # Usamos *args, **kwargs para aceptar cualquier argumento posicional o de palabra clave.
+    mock_vectorstore_retriever.invoke.side_effect = lambda *args, **kwargs: (
         time.sleep(0.1), [Document(page_content="Mocked context.")] * RETRIEVER_K
     )[1] # Retorna los documentos después del sleep
-    mock_llm.invoke.side_effect = lambda p: (time.sleep(0.5), "Simulated quick response.")[1]
+
+    mock_llm.invoke.side_effect = lambda *args, **kwargs: (time.sleep(0.5), "Simulated quick response.")[1]
 
     start_time = time.perf_counter()
     response = rag_chain.invoke(sample_question)
     end_time = time.perf_counter()
-    
+
     elapsed_time = end_time - start_time
     print(f"\nTiempo de respuesta simulado para RAGChain: {elapsed_time:.4f} segundos")
-    
+
     assert elapsed_time < expected_max_time
     assert response == "Simulated quick response."
-    
-    # Restaurar side_effects para otros tests
+
+    # Restaurar side_effects para otros tests (buena práctica)
     mock_vectorstore_retriever.invoke.side_effect = None
     mock_llm.invoke.side_effect = None
